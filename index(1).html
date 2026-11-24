@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Karteikarten KA-Religion – 25. November</title>
+  <style>
+    :root {
+      --bg: #f3f6fa;
+      --karte: #ffffff;
+      --rueck: #fff6bf;
+      --text: #1b2a3a;
+      --leise: #5a6b7d;
+      --linie: #c9d4df;
+      --akzent: #1f4e79;
+      --gut: #2e7d4f;
+      --nochmal: #b3541e;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1822;
+        --karte: #182534;
+        --rueck: #3a3410;
+        --text: #e6edf4;
+        --leise: #9fb0c1;
+        --linie: #2b3d50;
+        --akzent: #8fc1ee;
+        --gut: #62c38a;
+        --nochmal: #f0a070;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font: 18px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+      padding: 1rem;
+      min-height: 100vh;
+    }
+    main { max-width: 34rem; margin: 0 auto; }
+    h1 { font: 700 1.5rem/1.25 Georgia, "Times New Roman", serif; margin: .8rem 0 .2rem; }
+    .unter { color: var(--leise); margin: 0 0 1rem; font-size: .95rem; }
+
+    progress { width: 100%; height: .7rem; accent-color: var(--gut); }
+    .stand { display: flex; justify-content: space-between; color: var(--leise); font-size: .9rem; margin: .2rem 0 1rem; }
+
+    /* Die Karte: Vorder- und Rückseite liegen übereinander und werden gedreht */
+    .buehne { perspective: 1200px; }
+    .karte {
+      display: grid;
+      cursor: pointer;
+      transition: transform .45s;
+      transform-style: preserve-3d;
+      -webkit-tap-highlight-color: transparent;
+      border-radius: 12px;
+    }
+    .karte.um { transform: rotateY(180deg); }
+    .seite {
+      grid-area: 1 / 1;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      min-height: 18rem;
+      padding: 1.3rem;
+      border: 2px solid var(--linie);
+      border-radius: 12px;
+      background: var(--karte);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .vorn { align-items: center; text-align: center; }
+    .vorn .frage { font: 700 1.5rem/1.3 Georgia, "Times New Roman", serif; }
+    .vorn .tipp { margin-top: 1.2rem; color: var(--leise); font-size: .9rem; }
+    .hinten { transform: rotateY(180deg); background: var(--rueck); border-color: var(--akzent); font-size: 1rem; }
+    .hinten ul { margin: .2rem 0; padding-left: 1.2rem; }
+    .hinten li { margin-bottom: .3rem; }
+    .hinten p { margin: .3rem 0; }
+    .karte:focus-visible { outline: 3px solid var(--akzent); outline-offset: 3px; }
+
+    /* Antwort-Knöpfe */
+    .knoepfe { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; margin-top: 1rem; }
+    button {
+      font: inherit;
+      font-weight: 700;
+      padding: 1rem .5rem;
+      border-radius: 10px;
+      border: 2px solid currentColor;
+      background: transparent;
+      cursor: pointer;
+    }
+    button:focus-visible { outline: 3px solid var(--akzent); outline-offset: 2px; }
+    #nochmal { color: var(--nochmal); }
+    #gewusst { color: var(--gut); }
+    button:disabled { opacity: .35; cursor: default; }
+    .zweit { color: var(--akzent); margin-top: 1rem; width: 100%; }
+
+    .fertig { text-align: center; padding: 2rem 1rem; border: 2px solid var(--gut); border-radius: 12px; background: var(--karte); }
+    .fertig h2 { font: 700 1.6rem/1.3 Georgia, serif; margin: 0 0 .5rem; }
+    [hidden] { display: none !important; }
+
+    @media (prefers-reduced-motion: reduce) { .karte { transition: none; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>KA-Religion – 25. November</h1>
+  <p class="unter">Karte antippen, um die Antwort zu sehen.</p>
+
+  <progress id="balken" max="1" value="0"></progress>
+  <div class="stand"><span id="gewusstText">0 gewusst</span><span id="restText"></span></div>
+
+  <div id="lernen">
+    <div class="buehne">
+      <div class="karte" id="karte" role="button" tabindex="0" aria-label="Karte umdrehen">
+        <div class="seite vorn">
+          <div class="frage" id="frage"></div>
+          <div class="tipp">Antippen zum Umdrehen</div>
+        </div>
+        <div class="seite hinten" id="antwort"></div>
+      </div>
+    </div>
+
+    <div class="knoepfe">
+      <button type="button" id="nochmal" disabled>Nochmal</button>
+      <button type="button" id="gewusst" disabled>Gewusst</button>
+    </div>
+  </div>
+
+  <div class="fertig" id="fertig" hidden>
+    <h2>Geschafft!</h2>
+    <p>Du hast alle Karten gewusst.</p>
+    <button type="button" class="zweit" id="neu">Noch einmal von vorn</button>
+  </div>
+</main>
+
+<script>
+  // Alle Karten: f = Vorderseite (Frage), a = Rückseite (Antwort als HTML)
+  const karten = [
+    { f: 'Welche Lebensabschnitte gibt es?',
+      a: '<ul><li>Säugling / Baby</li><li>Kleinkind</li><li>Kind (Grundschulzeit)</li><li>Jugendliche(r) – Pubertät</li><li>Erwachsene(r)</li><li>Senior(in) – Alter</li></ul>' },
+    { f: 'Was ist ein Selbstbild?',
+      a: '<p>So sehe ich <strong>mich selbst</strong>.</p><p>Beispiel: Ich halte mich für schüchtern.</p>' },
+    { f: 'Was ist ein Fremdbild?',
+      a: '<p>So sehen <strong>andere mich</strong>.</p><p>Selbst- und Fremdbild können sich unterscheiden. Beispiel: Andere finden mich locker, ich selbst fühle mich schüchtern.</p>' },
+    { f: 'Warum gibt es Erwartungen in unserer Gesellschaft?',
+      a: '<ul><li>Menschen leben zusammen und brauchen gemeinsame Regeln.</li><li>Erwartungen geben Orientierung (pünktlich, höflich, mitarbeiten).</li><li>Jede Rolle hat eigene Erwartungen (Schüler, Kind, Freund).</li><li>Zu hohe Erwartungen können Druck machen.</li></ul>' },
+    { f: 'Was ist ein Star?',
+      a: '<p>Jemand, der <strong>berühmt</strong> ist und für Erfolg, Aussehen oder Talent bewundert wird.</p><p>Man kennt ihn meist nur aus den Medien.</p>' },
+    { f: 'Was ist ein Vorbild – und was unterscheidet es vom Star?',
+      a: '<p>Ein Vorbild wird für sein <strong>Verhalten und seine Werte</strong> bewundert. Man will so handeln wie er oder sie.</p><p>Ein Vorbild kann ganz alltäglich sein (Eltern, Trainer). Ein Star ist nicht automatisch ein Vorbild.</p>' },
+    { f: 'Vater Martin: Wer ist er und worauf wartet er?',
+      a: '<p>Martin ist ein <strong>alter, einsamer Schuster</strong>, dessen Familie gestorben ist. Er liest in der Bibel.</p><p>Er hört im Traum, dass <strong>Jesus ihn am nächsten Tag besucht</strong>, und wartet am Fenster.</p>' },
+    { f: 'Vater Martin: Wer kommt stattdessen zu Besuch?',
+      a: '<ul><li>Ein alter Straßenkehrer: Martin lädt ihn zum Tee ein.</li><li>Eine frierende Frau mit Baby: Martin gibt ihr Essen und einen Mantel.</li><li>Eine Apfelverkäuferin und ein Junge, der einen Apfel geklaut hat: Martin hilft bei der Versöhnung.</li></ul>' },
+    { f: 'Vater Martin: Wie endet die Geschichte und was ist die Botschaft?',
+      a: '<p>Abends erkennt Martin: <strong>Jesus war bei ihm</strong>, in jedem, dem er geholfen hat.</p><p>Botschaft: Wer Menschen in Not hilft, begegnet Jesus (Matthäus 25,40).</p>' },
+    { f: 'Warum ist Jesus auch heute noch als Vorbild relevant?',
+      a: '<ul><li>Er wendet sich Außenseitern, Kranken und Armen zu.</li><li>Er predigt Nächstenliebe und Vergebung, ohne Gewalt.</li><li>Seine Worte und Taten passen zusammen.</li><li>Heute: bei Mobbing nicht wegschauen, Streit schlichten, Hilfe anbieten.</li></ul>' },
+    { f: 'Biblische Geschichte 1: Zachäus (Lukas 19)',
+      a: '<ul><li>Zachäus ist Oberzöllner, reich und unbeliebt.</li><li>Er klettert auf einen Baum, um Jesus zu sehen.</li><li>Jesus kehrt bei ihm ein, obwohl alle schimpfen.</li><li>Zachäus ändert sich: Er gibt den Armen die Hälfte und zahlt vierfach zurück.</li></ul>' },
+    { f: 'Biblische Geschichte 2: Der barmherzige Samariter (Lukas 10)',
+      a: '<ul><li>Ein Mann wird überfallen und bleibt verletzt liegen.</li><li>Ein Priester und ein Levit gehen vorbei.</li><li>Ein Samariter hilft und bezahlt die Pflege.</li><li>Jesus: „Geh und handle ebenso!“</li></ul>' }
+  ];
+
+  const karte = document.getElementById('karte');
+  const frage = document.getElementById('frage');
+  const antwort = document.getElementById('antwort');
+  const bGewusst = document.getElementById('gewusst');
+  const bNochmal = document.getElementById('nochmal');
+  const balken = document.getElementById('balken');
+
+  let stapel = [];      // Karten, die noch nicht gewusst wurden
+  let gewusst = 0;
+
+  function neuStarten() {
+    stapel = karten.slice();
+    gewusst = 0;
+    balken.max = karten.length;
+    document.getElementById('lernen').hidden = false;
+    document.getElementById('fertig').hidden = true;
+    zeigen();
+  }
+
+  function zeigen() {
+    balken.value = gewusst;
+    document.getElementById('gewusstText').textContent = gewusst + ' von ' + karten.length + ' gewusst';
+    document.getElementById('restText').textContent = stapel.length + ' übrig';
+    if (stapel.length === 0) {
+      document.getElementById('lernen').hidden = true;
+      document.getElementById('fertig').hidden = false;
+      return;
+    }
+    karte.classList.remove('um');
+    bGewusst.disabled = true;
+    bNochmal.disabled = true;
+    // Inhalt erst nach dem Zurückdrehen tauschen, damit die Antwort nicht aufblitzt
+    setTimeout(function () {
+      frage.textContent = stapel[0].f;
+      antwort.innerHTML = stapel[0].a;
+    }, 200);
+  }
+
+  function umdrehen() {
+    karte.classList.toggle('um');
+    const offen = karte.classList.contains('um');
+    bGewusst.disabled = !offen;
+    bNochmal.disabled = !offen;
+  }
+
+  karte.addEventListener('click', umdrehen);
+  karte.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); umdrehen(); }
+  });
+
+  bGewusst.addEventListener('click', function () {
+    stapel.shift();
+    gewusst++;
+    zeigen();
+  });
+  bNochmal.addEventListener('click', function () {
+    stapel.push(stapel.shift());   // Karte kommt hinten wieder an
+    zeigen();
+  });
+  document.getElementById('neu').addEventListener('click', neuStarten);
+
+  // Erste Karte sofort anzeigen
+  neuStarten();
+  frage.textContent = stapel[0].f;
+  antwort.innerHTML = stapel[0].a;
+</script>
+</body>
+</html>
